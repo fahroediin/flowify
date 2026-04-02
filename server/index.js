@@ -15,7 +15,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve main frontend build if needed
-// app.use(express.static('../dist'));
+app.use(express.static('../dist'));
 
 // Initialize Database
 initDb().then(() => {
