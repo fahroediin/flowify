@@ -87,10 +87,15 @@ const loadThemes = async () => {
                 selector.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 selectedTheme = btn.dataset.theme;
-                // If there's code, re-render
-                const val = document.getElementById('editor-input').value;
-                if (val.trim()) {
-                    renderCode();
+                
+                // If flowchart is already drawn, hot-reload theme without destroying user-adjusted positions
+                if (network && visNodes) {
+                    updateNetworkTheme(selectedTheme);
+                } else {
+                    const val = document.getElementById('editor-input').value;
+                    if (val.trim()) {
+                        renderCode();
+                    }
                 }
             });
         });
@@ -112,6 +117,8 @@ const THEME_PALETTES = {
 let currentMermaidCode = '';
 let currentSvgOutput = '';
 let network = null;
+let visNodes = null;
+let visEdges = null;
 
 const renderCode = async () => {
     const content = document.getElementById('editor-input').value;
@@ -147,6 +154,45 @@ const renderCode = async () => {
     }
 };
 
+const updateNetworkTheme = (themeId) => {
+    if (!visNodes || !visEdges) return;
+    const palette = THEME_PALETTES[themeId] || THEME_PALETTES['ocean'];
+    
+    const nodeUpdates = visNodes.get().map(n => {
+        if (n.shape === 'image') {
+            return {
+                id: n.id,
+                image: createDiamondDataURI(n.originalLabel, palette)
+            };
+        } else {
+            return {
+                id: n.id,
+                color: {
+                    background: palette.nodeBg,
+                    border: palette.border,
+                    highlight: { background: palette.border, border: palette.font }
+                },
+                font: { color: palette.font, face: 'Inter', size: 14, bold: { color: palette.font } }
+            };
+        }
+    });
+
+    const edgeUpdates = visEdges.get().map(e => ({
+        id: e.id,
+        color: { color: palette.line },
+        font: { align: 'middle', background: palette.bg !== '#ffffff' ? '#1e293b' : '#ffffff', color: palette.font, strokeWidth: 0 }
+    }));
+
+    visNodes.update(nodeUpdates);
+    visEdges.update(edgeUpdates);
+
+    // Batalkan status pemilihan/fokus (Highlight) karena node yang ditarik 
+    // akan terus berstatus "Selected" dan memberikan ilusi warnanya tertinggal.
+    if (network) {
+        network.unselectAll();
+    }
+};
+
 const createDiamondDataURI = (text, palette) => {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -178,7 +224,7 @@ const createDiamondDataURI = (text, palette) => {
     let textWidth = 0;
     lines.forEach(l => {
         const metrics = ctx.measureText(l);
-        if(metrics.width > textWidth) textWidth = metrics.width;
+        if (metrics.width > textWidth) textWidth = metrics.width;
     });
 
     const lineHeight = 16;
@@ -193,44 +239,20 @@ const createDiamondDataURI = (text, palette) => {
     if (canvasWidth < 120) canvasWidth = 120;
     if (canvasHeight < 80) canvasHeight = 80;
 
-    // Retina scale rendering but with correct CSS scaling data payload
-    // To make sure Vis-Network doesn't draw it twice as large when `useImageSize: true` is used, 
-    // we must NOT multiply the actual canvas.width! We only use scale for internal context.
-    // Actually, Vis-Network uses the literal image dimensions in pixels. 
-    // So 1x pixel dimensions is the right way for true proportional sizing.
-    canvas.width = canvasWidth;
-    canvas.height = canvasHeight;
+    // Build SVG string for INFINITE vector scalability
+    const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${canvasWidth}" height="${canvasHeight}">`;
+    const defs = `<defs><filter id="ds" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="4" stdDeviation="3" flood-color="#000" flood-opacity="0.1"/></filter></defs>`;
+    const rect = `<polygon points="${canvasWidth/2},4 ${canvasWidth-4},${canvasHeight/2} ${canvasWidth/2},${canvasHeight-4} 4,${canvasHeight/2}" fill="${palette.nodeBg}" stroke="${palette.border}" stroke-width="2" filter="url(#ds)"/>`;
     
-    ctx.font = '600 13px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    
-    ctx.fillStyle = palette.nodeBg;
-    ctx.strokeStyle = palette.border;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = 'rgba(0,0,0,0.1)';
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 4;
-    
-    ctx.beginPath();
-    ctx.moveTo(canvasWidth/2, 4);
-    ctx.lineTo(canvasWidth - 4, canvasHeight/2);
-    ctx.lineTo(canvasWidth/2, canvasHeight - 4);
-    ctx.lineTo(4, canvasHeight/2);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    
-    ctx.shadowColor = 'transparent';
-    ctx.fillStyle = palette.font;
-    
+    let textEls = '';
     const startY = (canvasHeight / 2) - ((lines.length - 1) * lineHeight) / 2;
     lines.forEach((l, i) => {
-        ctx.fillText(l, canvasWidth/2, startY + (i * lineHeight));
+        textEls += `<text x="${canvasWidth/2}" y="${startY + (i * lineHeight)}" font-family="Inter, sans-serif" font-weight="600" font-size="13px" fill="${palette.font}" text-anchor="middle" dominant-baseline="central">${l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</text>`;
     });
+
+    const svgString = `${svgHeader}${defs}${rect}${textEls}</svg>`;
     
-    return canvas.toDataURL('image/png');
+    return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
 };
 
 const drawVisNetwork = (data, themeId) => {
@@ -245,17 +267,24 @@ const drawVisNetwork = (data, themeId) => {
 
     const palette = THEME_PALETTES[themeId] || THEME_PALETTES['ocean'];
     
-    const nodes = new vis.DataSet(data.nodes.map(n => {
+    visNodes = new vis.DataSet(data.nodes.map(n => {
         if (n.shape === 'diamond') {
             return {
                 id: n.id,
+                level: n.level !== null ? n.level : undefined,
+                x: n.x !== null ? n.x : undefined,
+                y: n.y !== null ? n.y : undefined,
                 shape: 'image',
                 image: createDiamondDataURI(n.label, palette),
-                shapeProperties: { useImageSize: true }
+                shapeProperties: { useImageSize: true },
+                originalLabel: n.label
             };
         } else {
             return {
                 id: n.id,
+                level: n.level !== null ? n.level : undefined,
+                x: n.x !== null ? n.x : undefined,
+                y: n.y !== null ? n.y : undefined,
                 label: n.label,
                 shape: 'box',
                 margin: { top: 12, right: 18, bottom: 12, left: 18 },
@@ -271,7 +300,7 @@ const drawVisNetwork = (data, themeId) => {
         }
     }));
 
-    const edges = new vis.DataSet(data.edges.map(e => ({
+    visEdges = new vis.DataSet(data.edges.map(e => ({
         from: e.from,
         to: e.to,
         label: e.label || '',
@@ -283,7 +312,7 @@ const drawVisNetwork = (data, themeId) => {
 
     const options = {
         layout: {
-            hierarchical: {
+            hierarchical: data.precalculatedLayout ? false : {
                 enabled: true,
                 direction: 'UD',
                 sortMethod: 'directed',
@@ -301,7 +330,7 @@ const drawVisNetwork = (data, themeId) => {
         }
     };
 
-    network = new vis.Network(wrapper, { nodes, edges }, options);
+    network = new vis.Network(wrapper, { nodes: visNodes, edges: visEdges }, options);
 
     // Kunci titik koordinat dan matikan penahan hierarki agar bebas digeser vertikal & horizontal
     network.once('afterDrawing', () => {
@@ -312,7 +341,7 @@ const drawVisNetwork = (data, themeId) => {
             y: positions[id].y
         }));
         
-        nodes.update(updates);
+        visNodes.update(updates);
         
         network.setOptions({
             layout: {
@@ -386,26 +415,76 @@ const setupEventListeners = () => {
     });
 
     document.getElementById('btn-export-png').addEventListener('click', () => {
-        if (!network) return showToast('Please render a flowchart first', 'error');
-        
-        const canvas = document.querySelector('#vis-network-canvas canvas');
-        if (!canvas) return showToast('Canvas not found', 'error');
+        if (!network || !visNodes) return showToast('Please render a flowchart first', 'error');
 
-        // Draw an opaque background dynamically for the PNG export
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = canvas.width;
-        tempCanvas.height = canvas.height;
-        const ctx = tempCanvas.getContext('2d');
-        
-        const palette = THEME_PALETTES[selectedTheme] || THEME_PALETTES['ocean'];
-        ctx.fillStyle = palette.bg; // Use theme matching background
-        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
-        ctx.drawImage(canvas, 0, 0);
+        const positions = network.getPositions();
+        const keys = Object.keys(positions);
+        if (keys.length === 0) return showToast('Flowchart is empty', 'error');
 
-        const link = document.createElement('a');
-        link.download = 'flowify-diagram.png';
-        link.href = tempCanvas.toDataURL('image/png');
-        link.click();
-        showToast('Exported successfully!');
+        showToast('Generating high-resolution export, please wait...');
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+        keys.forEach(id => {
+            const box = network.getBoundingBox(id);
+            if (box.left < minX) minX = box.left;
+            if (box.right > maxX) maxX = box.right;
+            if (box.top < minY) minY = box.top;
+            if (box.bottom > maxY) maxY = box.bottom;
+        });
+
+        const padding = 60;
+        const graphW = Math.abs(maxX - minX) + (padding * 2);
+        const graphH = Math.abs(maxY - minY) + (padding * 2);
+
+        // Skala 3x lipat untuk kejernihan maksimal resolusi Ultra Tinggi
+        const scaleMultiplier = 3; 
+
+        const wrapper = document.getElementById('vis-network-canvas');
+        const origWidth = wrapper.style.width;
+        const origHeight = wrapper.style.height;
+        const origPos = wrapper.style.position;
+        const origTop = wrapper.style.top;
+        const origLeft = wrapper.style.left;
+        
+        const oldViewPos = network.getViewPosition();
+        const oldScale = network.getScale();
+
+        // Lepaskan kanvas dari ruang tampilan dan renggangkan ukurannya jadi raksasa
+        wrapper.style.position = 'fixed';
+        wrapper.style.top = '-9999px';
+        wrapper.style.left = '-9999px';
+        wrapper.style.width = (graphW * scaleMultiplier) + 'px';
+        wrapper.style.height = (graphH * scaleMultiplier) + 'px';
+        
+        network.redraw();
+        // Paksa Vis-Network mengatur ulang skala tata letak keseluruhan secara proporsional ke kanvas raksasa
+        network.fit({ animation: false });
+
+        setTimeout(() => {
+            const canvas = wrapper.querySelector('canvas');
+            if (!canvas) {
+                // Restore in case of failure
+                wrapper.style.width = origWidth;
+                wrapper.style.height = origHeight;
+                wrapper.style.position = origPos;
+                return showToast('Canvas manipulation failed', 'error');
+            }
+
+            const link = document.createElement('a');
+            link.download = 'flowify-diagram-transparent.png';
+            link.href = canvas.toDataURL('image/png'); // Latar belakang transparan bawaan HTML5 Canvas
+            link.click();
+            
+            // Kembalikan seluruh posisi asli untuk pengguna
+            wrapper.style.width = origWidth;
+            wrapper.style.height = origHeight;
+            wrapper.style.position = origPos;
+            wrapper.style.top = origTop;
+            wrapper.style.left = origLeft;
+            network.redraw();
+            network.moveTo({ position: oldViewPos, scale: oldScale, animation: false });
+            
+            showToast('Exported Transparent PNG Successfully!');
+        }, 500); 
     });
 };

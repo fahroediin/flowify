@@ -11,13 +11,15 @@ exports.parseTextToGraphData = (text) => {
     let nodeCounter = 1;
 
     let lastTopLevelId = null;
+    let currentLevel = 0;
+    let branchCounter = 0;
 
     const getNode = (cleanText, forceNew = false) => {
         let key = cleanText.toLowerCase();
         if (!nodeMap[key] || forceNew) {
             let id = `Node${nodeCounter++}`;
             if (!forceNew) nodeMap[key] = id;
-            nodes[id] = { text: cleanText, type: 'box' };
+            nodes[id] = { text: cleanText, type: 'box', level: null, x: null, y: null };
             return id;
         }
         return nodeMap[key];
@@ -28,6 +30,7 @@ exports.parseTextToGraphData = (text) => {
         let line = originalLine.trim();
 
         if (isIndented && lastTopLevelId) {
+            branchCounter++;
             nodes[lastTopLevelId].type = 'decision';
             let content = line.replace(/^[-*]\s*/, '').replace(/"/g, "'");
             let condition = "";
@@ -47,6 +50,24 @@ exports.parseTextToGraphData = (text) => {
             }
             
             let targetId = getNode(targetText);
+            
+            // Smart Level Allocation
+            if (branchCounter === 1) {
+                currentLevel++; // Cabang utama turun ke bawah (Level selanjutnya)
+                if (!nodes[targetId].level || nodes[targetId].x === null) {
+                    nodes[targetId].level = currentLevel;
+                    nodes[targetId].x = 0;
+                    nodes[targetId].y = currentLevel * 200;
+                }
+            } else {
+                // Cabang ekstra disebarkan ke samping (Level statis sebaris decision)
+                if (!nodes[targetId].level || nodes[targetId].x === null) {
+                    nodes[targetId].level = nodes[lastTopLevelId].level;
+                    nodes[targetId].x = branchCounter === 2 ? 350 : -350;
+                    nodes[targetId].y = nodes[lastTopLevelId].y;
+                }
+            }
+
             edges.push({ from: lastTopLevelId, to: targetId, label: condition });
 
             if (jumpText) {
@@ -54,6 +75,9 @@ exports.parseTextToGraphData = (text) => {
                 edges.push({ from: targetId, to: jumpId, label: "" });
             }
         } else {
+            branchCounter = 0;
+            currentLevel++;
+            
             let cleanText = line.replace(/^(\d+\.|-|\*)\s*/, '').replace(/"/g, "'");
             let jumpText = "";
             if (cleanText.includes('->')) {
@@ -63,6 +87,14 @@ exports.parseTextToGraphData = (text) => {
             }
 
             let id = getNode(cleanText);
+
+            if (!nodes[id].level || nodes[id].x === null) {
+                nodes[id].level = currentLevel;
+                nodes[id].x = 0;
+                nodes[id].y = currentLevel * 200;
+            } else {
+                currentLevel = nodes[id].level;
+            }
 
             if (lastTopLevelId && nodes[lastTopLevelId].type !== 'decision') {
                 edges.push({ from: lastTopLevelId, to: id, label: "" });
@@ -77,13 +109,47 @@ exports.parseTextToGraphData = (text) => {
         }
     });
 
-    let graphData = { nodes: [], edges: [] };
+    // Post-process to guarantee ALL nodes have an assigned level to prevent Vis-Network Crash.
+    // Jump targets that are never explicitly defined in the main flow list will lack levels.
+    let missing = true;
+    let iterationLimit = 10;
+    let maxLevel = currentLevel + 1;
+
+    while (missing && iterationLimit-- > 0) {
+        missing = false;
+        Object.keys(nodes).forEach(id => {
+            if (!nodes[id].level || nodes[id].x === null) {
+                // Try to infer from parent
+                let parentEdge = edges.find(e => e.to === id);
+                if (parentEdge && nodes[parentEdge.from] && nodes[parentEdge.from].level) {
+                    nodes[id].level = nodes[parentEdge.from].level + 1;
+                    nodes[id].x = nodes[parentEdge.from].x;
+                    nodes[id].y = nodes[parentEdge.from].y + 200;
+                } else {
+                    missing = true;
+                }
+            }
+        });
+        
+        // Final fallback if they're isolated or caught in a resolution loop
+        if (missing && iterationLimit === 1) {
+            Object.keys(nodes).forEach(id => {
+                if (!nodes[id].level || nodes[id].x === null) {
+                    nodes[id].level = maxLevel++;
+                    nodes[id].x = 0;
+                    nodes[id].y = nodes[id].level * 200;
+                }
+            });
+        }
+    }
+
+    let graphData = { nodes: [], edges: edges, precalculatedLayout: true };
     let mermaid = 'flowchart TD\n';
 
     Object.keys(nodes).forEach(id => {
         let n = nodes[id];
         let shape = n.type === 'decision' ? 'diamond' : 'box';
-        graphData.nodes.push({ id: id, label: n.text, shape: shape });
+        graphData.nodes.push({ id: id, label: n.text, shape: shape, level: n.level, x: n.x, y: n.y });
 
         if (n.type === 'decision') {
             mermaid += `    ${id}{"${n.text}"}\n`;
