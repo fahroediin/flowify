@@ -17,7 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 const path = require('path');
 
 // Serve main frontend build
-app.use(express.static(path.join(__dirname, '../dist')));
+app.use(express.static(path.join(__dirname, '../src/dist')));
 
 // Initialize Database
 initDb().then(() => {
@@ -44,7 +44,7 @@ app.use('/api/themes', themeRoutes);
 // SPA Router Fallback - Gunakan middleware tanpa path string agar kompatibel dengan Express 5
 app.use((req, res, next) => {
     if (req.method === 'GET' && !req.path.startsWith('/api')) {
-        return res.sendFile(path.join(__dirname, '../dist/index.html'));
+        return res.sendFile(path.join(__dirname, '../src/dist/index.html'));
     }
     next();
 });
