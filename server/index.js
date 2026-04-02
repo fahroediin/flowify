@@ -41,9 +41,12 @@ app.use('/api/auth', authRoutes);
 app.use('/api/flowcharts', flowchartRoutes);
 app.use('/api/themes', themeRoutes);
 
-// SPA Router Fallback - Berikan ini agar navigasi frontend (Vite) jalan
-app.get('/:path*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist/index.html'));
+// SPA Router Fallback - Gunakan middleware tanpa path string agar kompatibel dengan Express 5
+app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+        return res.sendFile(path.join(__dirname, '../dist/index.html'));
+    }
+    next();
 });
 
 // Error Handler Middleware
