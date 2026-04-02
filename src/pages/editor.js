@@ -453,9 +453,15 @@ const setupEventListeners = () => {
     document.getElementById('btn-save').addEventListener('click', async () => {
         if (!currentMermaidCode) return showToast('Please render a flowchart first', 'error');
         
+        const saveBtn = document.getElementById('btn-save');
+        const ogText = saveBtn.textContent;
+
         try {
             const title = prompt('Enter flowchart title:', 'My Flowchart');
             if (title === null) return;
+
+            saveBtn.textContent = 'Saving...';
+            saveBtn.disabled = true;
 
             showToast('Generating Vector Base on Backend...');
             
@@ -483,6 +489,9 @@ const setupEventListeners = () => {
             showToast('Saved to history successfully!');
         } catch (e) {
             showToast(e.message, 'error');
+        } finally {
+            saveBtn.textContent = ogText;
+            saveBtn.disabled = false;
         }
     });
 
