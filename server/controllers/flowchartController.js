@@ -8,17 +8,22 @@ exports.parseInput = async (req, res, next) => {
         const { input_type, content } = req.body;
         
         let mermaidCode = '';
+        let graphData = null;
+
         if (input_type === 'mermaid') {
             mermaidCode = content;
+            graphData = parserService.parseMermaidToGraphData(content);
         } else if (input_type === 'text') {
-            mermaidCode = parserService.parseTextToMermaid(content);
+            const parsed = parserService.parseTextToGraphData(content);
+            mermaidCode = parsed.mermaid_code;
+            graphData = parsed.graph_data;
         } else {
             return res.status(400).json({ success: false, message: 'Invalid input type' });
         }
 
         res.json({
             success: true,
-            data: { mermaid_code: mermaidCode, is_valid: true }
+            data: { mermaid_code: mermaidCode, graph_data: graphData, is_valid: true }
         });
     } catch (error) {
         next(error);
