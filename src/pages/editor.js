@@ -195,12 +195,45 @@ const setupEventListeners = () => {
         }
     });
 
-    // We can implement export
     document.getElementById('btn-export-png').addEventListener('click', () => {
         if (!currentSvgOutput) return showToast('Please render a flowchart first', 'error');
-        // Simple client-side export for SVG to PNG, or use backend API
-        // For now, since it hasn't been saved to get an ID for export API,
-        // we can just trigger a download directly or we can use an endpoint that takes raw svg.
-        showToast('Saving to DB to enable server export...');
+        
+        const svgElement = document.querySelector('#preview-container svg');
+        if (!svgElement) return showToast('SVG not found', 'error');
+
+        try {
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+            
+            // Set scale factor for higher resolution PNG
+            const scale = 2;
+            const viewBox = svgElement.viewBox.baseVal || document.documentElement;
+            // Get proper dimensions by parsing viewBox or using boundingClientRect
+            const rect = svgElement.getBoundingClientRect();
+            const width = viewBox.width || rect.width || 800;
+            const height = viewBox.height || rect.height || 600;
+
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            
+            img.onload = () => {
+                ctx.fillStyle = '#ffffff'; // Use white background just in case
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                
+                const link = document.createElement('a');
+                link.download = 'flowify-diagram.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+                showToast('Exported successfully!');
+            };
+            
+            // Must encode properly to base64
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        } catch (err) {
+            showToast('Failed to export image', 'error');
+        }
     });
 };
