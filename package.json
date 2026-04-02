@@ -1,0 +1,43 @@
+{
+  "name": "flowify",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev:server": "nodemon server/index.js",
+    "dev:client": "vite",
+    "dev": "npm run dev:server & npm run dev:client",
+    "start": "node server/index.js",
+    "build": "vite build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fahroediin/flowify.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/fahroediin/flowify/issues"
+  },
+  "homepage": "https://github.com/fahroediin/flowify#readme",
+  "dependencies": {
+    "@mermaid-js/mermaid-cli": "^11.12.0",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "jsonwebtoken": "^9.0.3",
+    "mermaid": "^11.14.0",
+    "multer": "^2.1.1",
+    "officeparser": "^6.0.7",
+    "pdf-parse": "^2.4.5",
+    "sharp": "^0.34.5",
+    "sqlite3": "^6.0.1",
+    "vite": "^8.0.3"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  }
+}
