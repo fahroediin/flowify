@@ -66,6 +66,17 @@ export const renderEditorPage = async (container, user) => {
                 </div>
             </div>
         </div>
+
+        <!-- History Modal -->
+        <div id="history-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+            <div style="background: var(--bg-panel); width: 800px; max-width: 90%; max-height: 80vh; border-radius: 8px; border: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+                <div style="padding: 1.5rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background: var(--bg-hover);">
+                    <h3 style="margin: 0; font-size: 1.2rem;">Your Flowcharts</h3>
+                    <button id="btn-close-modal" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+                </div>
+                <div style="padding: 1rem; flex: 1; overflow-y: auto;" id="history-list"></div>
+            </div>
+        </div>
     `;
 
     setupEventListeners();
@@ -377,6 +388,67 @@ const setupEventListeners = () => {
     });
 
     document.getElementById('btn-render').addEventListener('click', renderCode);
+
+    const modal = document.getElementById('history-modal');
+    document.getElementById('btn-close-modal').addEventListener('click', () => {
+        modal.style.display = 'none';
+    });
+
+    document.getElementById('btn-history').addEventListener('click', async () => {
+        modal.style.display = 'flex';
+        const listContainer = document.getElementById('history-list');
+        listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Memuat daftar riwayat...</p>';
+        try {
+            const res = await apiCall('/flowcharts?limit=50');
+            const data = res.data.flowcharts;
+            if (data.length === 0) {
+                listContainer.innerHTML = '<p style="text-align: center; color: var(--text-muted); margin-top: 2rem;">Belum ada riwayat tersimpan.</p>';
+            } else {
+                listContainer.innerHTML = data.map(item => `
+                    <div style="padding: 1rem; border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; background: var(--bg-main);">
+                        <div>
+                            <h4 style="margin-bottom: 0.25rem;">${item.title}</h4>
+                            <span style="font-size: 0.8rem; color: var(--text-muted);">${new Date(item.created_at).toLocaleString()} • Tema: ${item.theme} • Format: ${item.input_type}</span>
+                        </div>
+                        <button class="primary btn-load-history" data-id="${item.id}">Buka</button>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.btn-load-history').forEach(btn => {
+                    btn.addEventListener('click', async (e) => {
+                        e.target.textContent = 'Membuka...';
+                        try {
+                            const id = e.target.dataset.id;
+                            const hRes = await apiCall(`/flowcharts/${id}`);
+                            const detail = hRes.data;
+                            
+                            const targetTab = document.querySelector(`.tab[data-format="${detail.input_type}"]`);
+                            if (targetTab) targetTab.click();
+                            
+                            document.getElementById('editor-input').value = detail.input_content;
+                            
+                            // Update indikator UI Tema tanpa trigger click event
+                            document.querySelectorAll('.theme-btn').forEach(b => b.classList.remove('active'));
+                            const targetTheme = document.querySelector(`.theme-btn[data-theme="${detail.theme}"]`);
+                            if (targetTheme) targetTheme.classList.add('active');
+                            
+                            selectedTheme = detail.theme;
+                            
+                            // Paksa render ulang skema baru menggantikan canvas yang lama
+                            renderCode();
+                            
+                            modal.style.display = 'none';
+                        } catch (err) {
+                            showToast('Gagal memuat riwayat', 'error');
+                            e.target.textContent = 'Buka';
+                        }
+                    });
+                });
+            }
+        } catch (e) {
+            listContainer.innerHTML = '<p style="text-align: center; color: var(--danger); margin-top: 2rem;">Gagal mengambil data dari DB.</p>';
+        }
+    });
 
     document.getElementById('btn-save').addEventListener('click', async () => {
         if (!currentMermaidCode) return showToast('Please render a flowchart first', 'error');
