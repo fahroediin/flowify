@@ -42,7 +42,7 @@ app.use('/api/flowcharts', flowchartRoutes);
 app.use('/api/themes', themeRoutes);
 
 // SPA Router Fallback - Berikan ini agar navigasi frontend (Vite) jalan
-app.get('/*', (req, res) => {
+app.get('/:path*', (req, res) => {
     res.sendFile(path.join(__dirname, '../dist/index.html'));
 });
 
