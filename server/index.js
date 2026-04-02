@@ -14,8 +14,10 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve main frontend build if needed
-app.use(express.static('../dist'));
+const path = require('path');
+
+// Serve main frontend build
+app.use(express.static(path.join(__dirname, '../dist')));
 
 // Initialize Database
 initDb().then(() => {
@@ -38,6 +40,11 @@ const themeRoutes = require('./routes/themeRoutes');
 app.use('/api/auth', authRoutes);
 app.use('/api/flowcharts', flowchartRoutes);
 app.use('/api/themes', themeRoutes);
+
+// SPA Router Fallback - Berikan ini agar navigasi frontend (Vite) jalan
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, '../dist/index.html'));
+});
 
 // Error Handler Middleware
 const errorHandler = require('./middleware/errorHandler');
