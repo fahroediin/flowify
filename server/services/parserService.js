@@ -232,5 +232,59 @@ exports.parseMermaidToGraphData = (code) => {
         }
     });
 
+    graphData.precalculatedLayout = true;
+    
+    // Algoritma DFS untuk mereplika tatanan Lurus Sumbu-Y secara matematis
+    let inDegree = {};
+    graphData.nodes.forEach(n => inDegree[n.id] = 0);
+    graphData.edges.forEach(e => inDegree[e.to] = (inDegree[e.to] || 0) + 1);
+    
+    let roots = graphData.nodes.filter(n => inDegree[n.id] === 0).map(n => n.id);
+    if (roots.length === 0 && graphData.nodes.length > 0) roots.push(graphData.nodes[0].id); 
+    
+    let visited = new Set();
+    let maxY = 0;
+    
+    const dfs = (id, xOffset, startY) => {
+        if (visited.has(id)) return;
+        visited.add(id);
+        
+        let node = graphData.nodes.find(n => n.id === id);
+        if (!node) return;
+        
+        node.x = xOffset;
+        node.y = startY;
+        node.level = startY / 200;
+        if (startY > maxY) maxY = startY;
+        
+        let children = graphData.edges.filter(e => e.from === id).map(e => e.to);
+        
+        children.forEach((childId, index) => {
+             if (index === 0) {
+                 // Prioritas anak ke-1 turun lurus
+                 dfs(childId, xOffset, startY + 200);
+             } else {
+                 // Anak lainnya menyebar ke Kanan, lalu Kiri secara progresif
+                 let newX = xOffset + (index % 2 !== 0 ? 350 * Math.ceil(index / 2) : -350 * Math.ceil(index / 2));
+                 dfs(childId, newX, startY);
+             }
+        });
+    };
+    
+    let nextRootY = 200;
+    roots.forEach(root => {
+        dfs(root, 0, nextRootY);
+        nextRootY = maxY + 200;
+    });
+
+    graphData.nodes.forEach(n => {
+        if (n.x === undefined || n.y === undefined) {
+             n.x = 0;
+             n.y = nextRootY;
+             n.level = nextRootY / 200;
+             nextRootY += 200;
+        }
+    });
+
     return graphData;
 };
