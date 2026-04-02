@@ -10,28 +10,26 @@ Flowify is a web service that transforms raw flowchart inputs into beautifully s
 
 | Feature | Description |
 |---|---|
-| **Mermaid.js Rendering** | Accepts standard Mermaid flowchart syntax and renders it into high-quality SVG |
-| **Sequential Text Parsing** | Converts numbered/bulleted step lists into flowchart diagrams automatically |
-| **7 Premium Themes** | Ocean, Sunset, Forest, Midnight, Corporate, Pastel, Monochrome |
-| **JWT Authentication** | Secure user registration and login with bcrypt-hashed passwords |
+| **Mermaid.js Rendering** | Accepts standard Mermaid syntax parsed natively into interactive web diagrams |
+| **Smart Sequence Parser** | Converts numbered text steps into flowcharts. Supports rigid mathematical routing for straight top-down flows and 90-degree decision branching via indented lists. |
+| **Interactive Live Editor** | High-performance `Vis-Network` UI allowing free drag-and-drop positioning |
+| **Hot-Reloading Themes** | Swap between 7 dynamic color themes without losing your customized node layouts |
+| **High-Res Export Engine** | Downloads 3x scaled bounding-box PNGs using infinitely scalable SVG node architectures with transparent/CSS-grid backgrounds |
 | **Flowchart History** | Save, browse, search, update, and delete your past flowcharts |
-| **Multi-Format Export** | Download as SVG, PNG (1×–4× scale), or PDF |
-| **Pagination & Search** | Browse history with paginated results and title-based search |
-| **REST API** | Clean, documented JSON API for all operations |
+| **JWT Authentication** | Secure user registration and login with bcrypt-hashed passwords |
 
 ---
 
 ## 🛠 Tech Stack
 
-| Layer | Technology |
+| **Layer** | **Technology** |
 |---|---|
 | **Runtime** | Node.js (v18+) |
 | **Backend** | Express.js 5 |
 | **Database** | SQLite 3 (via `sqlite3`) |
 | **Auth** | JWT (`jsonwebtoken`) + bcrypt (`bcryptjs`) |
-| **Rendering** | `@mermaid-js/mermaid-cli` (Puppeteer-based) |
-| **Image Export** | `sharp` (PNG), Puppeteer (PDF) |
-| **Frontend** | Vite + Vanilla JS |
+| **Rendering** | `vis-network` (Frontend Interactive Engine) & Puppeteer (Backend SVGs) |
+| **Frontend** | Vite + Vanilla JS + HTML5 Canvas |
 | **Future AI** | Google Gemini Vision API (stub ready) |
 
 ---
@@ -579,17 +577,19 @@ flowchart TD
     C --> F[Settings]
 ```
 
-### Sequential Text (Auto-Converted)
+### Sequential Text (Advanced Branching & Jumps)
 
-```
-1. User opens the Login page
-2. User fills in username and password
-3. System validates credentials
-4. Dashboard is displayed
-5. User can access Profile or Settings
+```text
+1. Buka Aplikasi Toko Online
+2. Cari Produk
+3. Pilih Produk
+4. Apakah Stok Tersedia?
+  - Ya: Tambahkan ke Keranjang -> Buka Keranjang
+  - Tidak: Tampilkan Peringatan Stok Habis -> Cari Produk
+5. Buka Keranjang
 ```
 
-The text parser converts each line into a connected node in a top-down flowchart.
+The text parser intelligently converts logic into top-down mathematical routing where the primary path draws rigidly downwards (`X=0`) while negative decisions offset perfectly 90-degrees to the side!
 
 ---
 
@@ -597,14 +597,13 @@ The text parser converts each line into a connected node in a top-down flowchart
 
 - [x] JWT authentication (register, login, profile)
 - [x] Mermaid.js syntax rendering with theme support
-- [x] Sequential text → Mermaid parser
-- [x] 7 premium themes
-- [x] Flowchart CRUD with history
-- [x] Pagination and search
-- [x] Export to SVG / PNG / PDF
+- [x] Built-in `vis-network` High-Performance Drag & Drop UI Canvas
+- [x] Sequential text parser (with mathematical coordinate geometry routing)
+- [x] Branching text parser (indented sub-steps / decision nodes & target jumping)
+- [x] 7 premium hot-swappable themes (maintaining user layout state)
+- [x] Flowchart CRUD with history, pagination, and search
+- [x] Ultra-High-Res (3x Scaling) Export Engine to SVG / PNG / PDF
 - [ ] AI-powered image → flowchart (Google Gemini Vision)
-- [ ] AI-powered PDF/Word → flowchart (Google Gemini)
-- [ ] Branching text parser (indented sub-steps / decision nodes)
 - [ ] Collaborative editing
 - [ ] Custom theme builder
 
