@@ -88,10 +88,11 @@ exports.parseTextToGraphData = (text) => {
                     nodes[targetId].level_x = 0;
                 }
             } else {
+                // Place at same level as first branch (one below decision), offset right
                 if (!nodes[targetId].level || nodes[targetId].level_y === null) {
-                    nodes[targetId].level = nodes[lastTopLevelId].level;
+                    nodes[targetId].level = currentLevel;
                     nodes[targetId].level_x = branchCounter === 2 ? 350 : -350;
-                    nodes[targetId].level_y = nodes[lastTopLevelId].level_y;
+                    nodes[targetId].level_y = currentLevel * 200;
                 }
             }
 
@@ -117,13 +118,12 @@ exports.parseTextToGraphData = (text) => {
             let fallbackLane = lastTopLevelId && nodes[lastTopLevelId] ? nodes[lastTopLevelId].lane : null;
             let id = getNode(cleanText, false, fallbackLane);
 
-            if (!nodes[id].level || nodes[id].level_y === null) {
-                nodes[id].level = currentLevel;
-                nodes[id].level_x = 0;
-                nodes[id].level_y = currentLevel * 200;
-            } else {
-                currentLevel = nodes[id].level;
-            }
+            // Always assign position from top-level step order.
+            // This prevents currentLevel from resetting to an old branch position,
+            // which would cause subsequent new nodes to collide with existing ones.
+            nodes[id].level = currentLevel;
+            nodes[id].level_x = 0;
+            nodes[id].level_y = currentLevel * 200;
 
             if (lastTopLevelId && nodes[lastTopLevelId].type !== 'decision') {
                 edges.push({ from: lastTopLevelId, to: id, label: "" });
@@ -168,6 +168,24 @@ exports.parseTextToGraphData = (text) => {
             });
         }
     }
+
+    // Collision resolution pass: detect and fix overlapping node positions
+    const posMap = {};
+    Object.keys(nodes).forEach(id => {
+        const key = `${nodes[id].level_x},${nodes[id].level_y}`;
+        if (!posMap[key]) posMap[key] = [];
+        posMap[key].push(id);
+    });
+    Object.values(posMap).forEach(group => {
+        if (group.length > 1) {
+            // Spread overlapping nodes horizontally
+            group.forEach((id, i) => {
+                if (i > 0) {
+                    nodes[id].level_x += i * 350;
+                }
+            });
+        }
+    });
 
     let graphData = { nodes: [], edges: edges, precalculatedLayout: true };
     if (lanes.length > 0) {
@@ -426,13 +444,11 @@ exports.parseMermaidToGraphData = (code) => {
                 let childNode = graphData.nodes.find(n => n.id === childId);
                 if (childNode) {
                     if (unvisitedChildren.length === 1) {
-                        childNode.level_x = curX;
+                        childNode.level_x = curX; // Single child: stay centered
                     } else if (idx === 0) {
-                        childNode.level_x = curX - 350;
-                    } else if (idx === 1) {
-                        childNode.level_x = curX + 350;
+                        childNode.level_x = curX; // First child: stay centered (main flow)
                     } else {
-                        childNode.level_x = curX + (idx % 2 === 0 ? -350 * Math.ceil(idx/2) : 350 * Math.ceil(idx/2));
+                        childNode.level_x = curX + (idx * 350); // Other children: go right
                     }
                 }
                 bfsVisited.add(childId);

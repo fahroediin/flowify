@@ -299,11 +299,26 @@ const updateNetworkTheme = (themeId) => {
         }
     });
 
-    const edgeUpdates = visEdges.get().map(e => ({
-        id: e.id,
-        color: { color: palette.line },
-        font: { align: 'middle', background: palette.bg !== '#ffffff' ? '#1e293b' : '#ffffff', color: palette.font, strokeWidth: 0 }
-    }));
+    const edgeUpdates = visEdges.get().map(e => {
+        let nodeFrom = visNodes.get(e.from);
+        let nodeTo = visNodes.get(e.to);
+        let labelText = e.label || '';
+        
+        // Re-calculate padding if needed or keep existing
+        return {
+            id: e.id,
+            color: { color: palette.line },
+            font: { 
+                align: 'middle', 
+                background: 'rgba(0,0,0,0)',
+                color: palette.laneText, 
+                strokeWidth: 4, 
+                strokeColor: palette.bg,
+                size: 13,
+                face: 'Inter'
+            }
+        };
+    });
 
     visNodes.update(nodeUpdates);
     visEdges.update(edgeUpdates);
@@ -480,14 +495,37 @@ const drawVisNetwork = (data, themeId) => {
         if (forceDir === 'vertical' && nodeFrom && nodeTo && nodeFrom.y !== undefined && nodeTo.y !== undefined && Math.abs(nodeFrom.y - nodeTo.y) < 20) {
              forceDir = 'horizontal';
         }
+
+        let labelText = e.label || '';
+        // Add horizontal offset for cross-lane labels to push them inside the lane
+        if (labelText && nodeFrom && nodeTo && nodeFrom.lane && nodeTo.lane && nodeFrom.lane !== nodeTo.lane) {
+            const lanes = currentLanes || [];
+            const fromIdx = lanes.indexOf(nodeFrom.lane);
+            const toIdx = lanes.indexOf(nodeTo.lane);
+            if (fromIdx !== -1 && toIdx !== -1) {
+                if (toIdx < fromIdx) {
+                    labelText = labelText + "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0";
+                } else {
+                    labelText = "\u00A0\u00A0\u00A0\u00A0\u00A0\u00A0" + labelText;
+                }
+            }
+        }
         
         return {
             from: e.from,
             to: e.to,
-            label: e.label || '',
+            label: labelText,
             arrows: 'to',
             color: { color: palette.line },
-            font: { align: 'middle', background: palette.bg !== '#ffffff' ? '#1e293b' : '#ffffff', color: palette.font, strokeWidth: 0 },
+            font: { 
+                align: 'middle', 
+                background: 'rgba(0,0,0,0)', // Invisible background box
+                color: palette.laneText, 
+                strokeWidth: 4, 
+                strokeColor: palette.bg, // Halo effect
+                size: 13,
+                face: 'Inter'
+            },
             smooth: { type: 'cubicBezier', forceDirection: forceDir, roundness: 0.4 }
         };
     }));
