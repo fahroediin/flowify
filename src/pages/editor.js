@@ -9,19 +9,43 @@ let inputFormat = 'mermaid';
 const DEFAULT_SAMPLES = [
     {
         id: 'sample-text-1',
-        title: 'Toko Online (Text)',
+        title: 'E-Commerce',
         format: 'text',
         content: `1. Buka Aplikasi Toko Online\n2. Cari Produk\n3. Pilih Produk\n4. Apakah Stok Tersedia?\n  - Ya: Tambahkan ke Keranjang -> Buka Keranjang\n  - Tidak: Tampilkan Peringatan Stok Habis -> Cari Produk\n5. Buka Keranjang\n6. Lanjut ke Checkout\n7. Apakah Saldo Mencukupi?\n  - Cukup: Lakukan Pembayaran -> Apakah Pembayaran Diverifikasi?\n  - Kurang: Tampilkan Error Saldo -> Buka Keranjang\n8. Apakah Pembayaran Diverifikasi?\n  - Sukses: Terbitkan Invoice -> Pesanan Diproses\n  - Gagal: Kirim Notifikasi Gagal -> Lanjut ke Checkout\n9. Pesanan Diproses\n10. Selesai`
     },
     {
+        id: 'sample-text-2',
+        title: 'Klinik Apotek',
+        format: 'text',
+        content: `1. Pasien Datang\n2. Pendaftaran di Resepsionis\n3. Pemeriksaan oleh Dokter\n4. Apakah Butuh Obat?\n  - Ya: Dokter Berikan Resep -> Bawa Resep ke Apotek\n  - Tidak: Pasien ke Kasir -> Pembayaran Pemeriksaan\n5. Bawa Resep ke Apotek\n6. Ambil Obat\n7. Pasien ke Kasir\n8. Pembayaran Pemeriksaan dan Obat\n9. Selesai\n10. Pembayaran Pemeriksaan -> Selesai`
+    },
+    {
+        id: 'sample-text-3',
+        title: 'E-KYC Selfie',
+        format: 'text',
+        content: `1. Mulai Proses E-KYC\n2. Buka Kamera\n3. Deteksi Wajah Awal\n4. Instruksi Hadap Depan\n5. Apakah Wajah Valid?\n  - Ya: Simpan Gambar Depan -> Instruksi Hadap Kiri\n  - Tidak: Tampilkan Error -> Instruksi Hadap Depan\n6. Instruksi Hadap Kiri\n7. Apakah Wajah Kiri Valid?\n  - Ya: Simpan Gambar Kiri -> Instruksi Hadap Kanan\n  - Tidak: Tampilkan Error Kiri -> Instruksi Hadap Kiri\n8. Instruksi Hadap Kanan\n9. Apakah Wajah Kanan Valid?\n  - Ya: Ekstrak Data ke Base64 -> Kirim ke Backend API\n  - Tidak: Tampilkan Error Kanan -> Instruksi Hadap Kanan\n10. Kirim ke Backend API\n11. E-KYC Selesai`
+    },
+    {
         id: 'sample-mermaid-1',
-        title: 'Toko Online (Mermaid)',
+        title: 'E-Commerce',
         format: 'mermaid',
         content: `flowchart TD\n    Node1[Buka Aplikasi Toko Online]\n    Node2[Cari Produk]\n    Node3[Pilih Produk]\n    Node4{Apakah Stok Tersedia?}\n    Node5[Tambahkan ke Keranjang]\n    Node6[Buka Keranjang]\n    Node7[Lanjut ke Checkout]\n    Node8{Apakah Saldo Mencukupi?}\n    Node9[Lakukan Pembayaran]\n    Node10{Apakah Pembayaran Diverifikasi?}\n    Node11[Tampilkan Peringatan Stok Habis]\n    Node12[Tampilkan Error Saldo]\n    Node13[Terbitkan Invoice]\n    Node14[Pesanan Diproses]\n    Node15[Kirim Notifikasi Gagal]\n    Node16[Selesai]\n\n    Node1 --> Node2\n    Node2 --> Node3\n    Node3 --> Node4\n    \n    Node4 -->|Ya| Node5\n    Node4 -->|Tidak| Node11\n    Node5 --> Node6\n    Node11 --> Node2\n    \n    Node6 --> Node7\n    Node7 --> Node8\n    \n    Node8 -->|Cukup| Node9\n    Node8 -->|Kurang| Node12\n    Node9 --> Node10\n    Node12 --> Node6\n    \n    Node10 -->|Sukses| Node13\n    Node10 -->|Gagal| Node15\n    Node13 --> Node14\n    Node15 --> Node7\n    \n    Node14 --> Node16`
+    },
+    {
+        id: 'sample-mermaid-2',
+        title: 'Klinik Apotek',
+        format: 'mermaid',
+        content: `flowchart TD\n    A[Pasien Datang] --> B[Pendaftaran di Resepsionis]\n    B --> C[Pemeriksaan oleh Dokter]\n    C --> D{Apakah Butuh Obat?}\n    D -->|Ya| E[Dokter Berikan Resep]\n    D -->|Tidak| H[Pasien ke Kasir]\n    E --> F[Bawa Resep ke Apotek]\n    F --> G[Ambil Obat]\n    G --> H\n    H --> I[Pembayaran Pemeriksaan dan Obat]\n    I --> J[Selesai]`
+    },
+    {
+        id: 'sample-mermaid-3',
+        title: 'E-KYC Selfie',
+        format: 'mermaid',
+        content: `flowchart TD\n    A[Mulai Proses E-KYC] --> B[Buka Kamera]\n    B --> C[Deteksi Wajah Awal]\n    C --> D[Instruksi Hadap Depan]\n    D --> E{Apakah Wajah Valid?}\n    E -->|Ya| F[Simpan Gambar Depan]\n    E -->|Tidak| G[Tampilkan Error]\n    G --> D\n    F --> H[Instruksi Hadap Kiri]\n    H --> I{Apakah Wajah Kiri Valid?}\n    I -->|Ya| J[Simpan Gambar Kiri]\n    I -->|Tidak| K[Tampilkan Error Kiri]\n    K --> H\n    J --> L[Instruksi Hadap Kanan]\n    L --> M{Apakah Wajah Kanan Valid?}\n    M -->|Ya| N[Ekstrak Data ke Base64]\n    M -->|Tidak| O[Tampilkan Error Kanan]\n    O --> L\n    N --> P[Kirim ke Backend API]\n    P --> Q[E-KYC Selesai]`
     }
 ];
 
-let userSamples = JSON.parse(localStorage.getItem('flowify_samples')) || DEFAULT_SAMPLES;
+const userSamples = DEFAULT_SAMPLES;
 
 export const renderEditorPage = async (container, user) => {
     container.innerHTML = `
