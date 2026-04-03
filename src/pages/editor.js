@@ -492,8 +492,16 @@ const drawVisNetwork = (data, themeId) => {
         let nodeTo = data.nodes.find(n => n.id === e.to);
         
         let forceDir = currentLaneDirection === 'horizontal' ? 'horizontal' : 'vertical';
+        let smoothType = 'cubicBezier';
+        let roundness = 0.4;
+
         if (forceDir === 'vertical' && nodeFrom && nodeTo && nodeFrom.y !== undefined && nodeTo.y !== undefined && Math.abs(nodeFrom.y - nodeTo.y) < 20) {
              forceDir = 'horizontal';
+             // Workaround vis.js bug where cubicBezier path math fails for exactly horizontal nodes, detaching the label to (0,0)
+             if (Math.abs(nodeFrom.y - nodeTo.y) < 1) {
+                 smoothType = 'curvedCW';
+                 roundness = 0.2;
+             }
         }
 
         let labelText = e.label || '';
@@ -526,7 +534,7 @@ const drawVisNetwork = (data, themeId) => {
                 size: 13,
                 face: 'Inter'
             },
-            smooth: { type: 'cubicBezier', forceDirection: forceDir, roundness: 0.4 }
+            smooth: { type: smoothType, forceDirection: forceDir, roundness: roundness }
         };
     }));
 

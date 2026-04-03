@@ -88,11 +88,11 @@ exports.parseTextToGraphData = (text) => {
                     nodes[targetId].level_x = 0;
                 }
             } else {
-                // Place at same level as first branch (one below decision), offset right
+                // Place at same level exactly as decision node, offset right
                 if (!nodes[targetId].level || nodes[targetId].level_y === null) {
-                    nodes[targetId].level = currentLevel;
+                    nodes[targetId].level = nodes[lastTopLevelId].level;
                     nodes[targetId].level_x = branchCounter === 2 ? 350 : -350;
-                    nodes[targetId].level_y = currentLevel * 200;
+                    nodes[targetId].level_y = nodes[lastTopLevelId].level_y;
                 }
             }
 
@@ -409,9 +409,11 @@ exports.parseMermaidToGraphData = (code) => {
             }
             
             let children = graphData.edges.filter(e => e.from === nId).map(e => e.to);
-            children.forEach(childId => {
+            children.forEach((childId, idx) => {
                 if (!stack.has(childId)) {
-                     calculateLevels(childId, (nodeNode ? nodeNode.level : currentLevel) + 1);
+                     // For decision branches (idx > 0), keep them on the same level as the parent
+                     let inc = (children.length > 1 && idx > 0) ? 0 : 1;
+                     calculateLevels(childId, (nodeNode ? nodeNode.level : currentLevel) + inc);
                 }
             });
             stack.delete(nId);
