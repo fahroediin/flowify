@@ -6,6 +6,23 @@ let currentThemes = [];
 let selectedTheme = 'ocean';
 let inputFormat = 'mermaid';
 
+const DEFAULT_SAMPLES = [
+    {
+        id: 'sample-text-1',
+        title: 'Toko Online (Text)',
+        format: 'text',
+        content: `1. Buka Aplikasi Toko Online\n2. Cari Produk\n3. Pilih Produk\n4. Apakah Stok Tersedia?\n  - Ya: Tambahkan ke Keranjang -> Buka Keranjang\n  - Tidak: Tampilkan Peringatan Stok Habis -> Cari Produk\n5. Buka Keranjang\n6. Lanjut ke Checkout\n7. Apakah Saldo Mencukupi?\n  - Cukup: Lakukan Pembayaran -> Apakah Pembayaran Diverifikasi?\n  - Kurang: Tampilkan Error Saldo -> Buka Keranjang\n8. Apakah Pembayaran Diverifikasi?\n  - Sukses: Terbitkan Invoice -> Pesanan Diproses\n  - Gagal: Kirim Notifikasi Gagal -> Lanjut ke Checkout\n9. Pesanan Diproses\n10. Selesai`
+    },
+    {
+        id: 'sample-mermaid-1',
+        title: 'Toko Online (Mermaid)',
+        format: 'mermaid',
+        content: `flowchart TD\n    Node1[Buka Aplikasi Toko Online]\n    Node2[Cari Produk]\n    Node3[Pilih Produk]\n    Node4{Apakah Stok Tersedia?}\n    Node5[Tambahkan ke Keranjang]\n    Node6[Buka Keranjang]\n    Node7[Lanjut ke Checkout]\n    Node8{Apakah Saldo Mencukupi?}\n    Node9[Lakukan Pembayaran]\n    Node10{Apakah Pembayaran Diverifikasi?}\n    Node11[Tampilkan Peringatan Stok Habis]\n    Node12[Tampilkan Error Saldo]\n    Node13[Terbitkan Invoice]\n    Node14[Pesanan Diproses]\n    Node15[Kirim Notifikasi Gagal]\n    Node16[Selesai]\n\n    Node1 --> Node2\n    Node2 --> Node3\n    Node3 --> Node4\n    \n    Node4 -->|Ya| Node5\n    Node4 -->|Tidak| Node11\n    Node5 --> Node6\n    Node11 --> Node2\n    \n    Node6 --> Node7\n    Node7 --> Node8\n    \n    Node8 -->|Cukup| Node9\n    Node8 -->|Kurang| Node12\n    Node9 --> Node10\n    Node12 --> Node6\n    \n    Node10 -->|Sukses| Node13\n    Node10 -->|Gagal| Node15\n    Node13 --> Node14\n    Node15 --> Node7\n    \n    Node14 --> Node16`
+    }
+];
+
+let userSamples = JSON.parse(localStorage.getItem('flowify_samples')) || DEFAULT_SAMPLES;
+
 export const renderEditorPage = async (container, user) => {
     container.innerHTML = `
         <nav class="navbar">
@@ -39,6 +56,11 @@ export const renderEditorPage = async (container, user) => {
                     <textarea id="editor-input" class="editor-textarea" spellcheck="false" placeholder="flowchart TD\n    A[Start] --> B[Process]\n    B --> C{Decision}\n    C -->|Yes| D[End]"></textarea>
                     
                     <button id="btn-render" class="primary" style="margin-top: 1rem; width: 100%;">Render Flowchart</button>
+                    
+                    <div class="samples-section">
+                        <h4 style="margin-bottom: 0.8rem; font-size: 0.9rem; color: var(--text-muted);">Quick Samples</h4>
+                        <div id="samples-list"></div>
+                    </div>
                 </div>
             </div>
 
@@ -81,6 +103,72 @@ export const renderEditorPage = async (container, user) => {
 
     setupEventListeners();
     await loadThemes();
+    renderSamples();
+};
+
+const renderSamples = () => {
+    const list = document.getElementById('samples-list');
+    if (!list) return;
+    
+    if (userSamples.length === 0) {
+        list.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">No samples available.</p>';
+        return;
+    }
+
+    list.innerHTML = userSamples.map(sample => `
+        <div class="sample-item" data-id="${sample.id}">
+            <div class="sample-info">
+                <span class="sample-title">${sample.title}</span>
+                <span class="sample-meta">${sample.format === 'mermaid' ? 'Mermaid' : 'Sequential Text'}</span>
+            </div>
+            <div class="sample-actions">
+                <button class="btn-sample-load" data-id="${sample.id}">Load</button>
+                <button class="btn-sample-delete" data-id="${sample.id}">&times;</button>
+            </div>
+        </div>
+    `).join('');
+
+    list.querySelectorAll('.btn-sample-load').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const sample = userSamples.find(s => s.id === btn.dataset.id);
+            if (sample) {
+                inputFormat = sample.format;
+                
+                // Switch tab UI
+                document.querySelectorAll('.tab').forEach(t => {
+                    if (t.dataset.format === sample.format) {
+                        t.classList.add('active');
+                    } else {
+                        t.classList.remove('active');
+                    }
+                });
+                
+                const hint = document.getElementById('input-hint');
+                const textarea = document.getElementById('editor-input');
+                
+                if (inputFormat === 'mermaid') {
+                    hint.textContent = 'Write your Mermaid.js flowchart code here.';
+                } else {
+                    hint.textContent = 'Write step-by-step text process (e.g., 1. Start, 2. Process).';
+                }
+                
+                textarea.value = sample.content;
+                showToast(`Loaded sample: ${sample.title}`);
+                renderCode();
+            }
+        });
+    });
+
+    list.querySelectorAll('.btn-sample-delete').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            userSamples = userSamples.filter(s => s.id !== id);
+            localStorage.setItem('flowify_samples', JSON.stringify(userSamples));
+            renderSamples();
+            showToast('Sample removed.');
+        });
+    });
 };
 
 const loadThemes = async () => {

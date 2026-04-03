@@ -269,3 +269,67 @@ input:focus, textarea:focus, select:focus {
 .toast.success {
     border-left: 4px solid var(--success);
 }
+
+.samples-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border);
+}
+
+.sample-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background-color: var(--bg-main);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.sample-item:hover {
+    border-color: var(--text-muted);
+    background-color: var(--bg-hover);
+}
+
+.sample-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.sample-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.sample-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+.sample-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sample-load {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    background-color: var(--accent);
+    color: var(--accent-text);
+}
+
+.btn-sample-delete {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.8rem;
+    background-color: transparent;
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.btn-sample-delete:hover {
+    background-color: var(--danger);
+    color: white;
+}
