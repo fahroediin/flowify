@@ -107,16 +107,18 @@ const renderSamples = () => {
     const list = document.getElementById('samples-list');
     if (!list) return;
     
-    if (userSamples.length === 0) {
+    const relevantSamples = userSamples.filter(s => s.format === inputFormat);
+
+    if (relevantSamples.length === 0) {
         list.style.display = 'none';
         return;
     }
     list.style.display = 'flex';
 
     list.innerHTML = `
-        <span class="samples-label">Samples:</span>
+        <span class="samples-label">Load Sample:</span>
         <div class="samples-scroll">
-            ${userSamples.map(sample => `
+            ${relevantSamples.map(sample => `
                 <button class="sample-pill" data-id="${sample.id}">${sample.title}</button>
             `).join('')}
         </div>
@@ -455,6 +457,7 @@ const setupEventListeners = () => {
                 hint.textContent = 'Write step-by-step text process (e.g., 1. Start, 2. Process).';
                 textarea.placeholder = "1. User opens the app\n2. User logs in\n3. Dashboard is shown";
             }
+            renderSamples();
         });
     });
 
