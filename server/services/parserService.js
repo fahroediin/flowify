@@ -14,13 +14,36 @@ exports.parseTextToGraphData = (text) => {
     let currentLevel = 0;
     let branchCounter = 0;
 
-    const getNode = (cleanText, forceNew = false) => {
+    let lanes = [];
+    let laneDirection = 'vertical';
+
+    if (lines.length > 0 && lines[0].trim().toLowerCase().startsWith('@direction:')) {
+        let dirConfig = lines.shift().trim().substring(11).trim().toUpperCase();
+        if (dirConfig === 'LR' || dirConfig === 'HORIZONTAL') laneDirection = 'horizontal';
+    }
+
+    const getNode = (cleanText, forceNew = false, fallbackLane = null) => {
         let key = cleanText.toLowerCase();
+        let lane = fallbackLane;
+        let actualText = cleanText;
+
+        if (cleanText.includes('@') && cleanText.includes(':')) {
+            const firstColon = cleanText.indexOf(':');
+            if (firstColon > -1 && cleanText.trim().startsWith('@')) {
+                lane = cleanText.substring(1, firstColon).trim();
+                actualText = cleanText.substring(firstColon + 1).trim();
+                key = actualText.toLowerCase();
+                if (!lanes.includes(lane)) lanes.push(lane);
+            }
+        }
+
         if (!nodeMap[key] || forceNew) {
             let id = `Node${nodeCounter++}`;
             if (!forceNew) nodeMap[key] = id;
-            nodes[id] = { text: cleanText, type: 'box', level: null, x: null, y: null };
+            nodes[id] = { text: actualText, type: 'box', level: null, level_x: null, level_y: null, lane: lane };
             return id;
+        } else if (lane && !nodes[nodeMap[key]].lane) {
+            nodes[nodeMap[key]].lane = lane;
         }
         return nodeMap[key];
     };
@@ -37,9 +60,14 @@ exports.parseTextToGraphData = (text) => {
             let targetText = content;
 
             if (content.includes(':')) {
-                const parts = content.split(':');
-                condition = parts[0].trim();
-                targetText = parts.slice(1).join(':').trim();
+                const firstColon = content.indexOf(':');
+                if (firstColon > -1) {
+                    let potentialCondition = content.substring(0, firstColon).trim();
+                    if (!potentialCondition.startsWith('@')) {
+                        condition = potentialCondition;
+                        targetText = content.substring(firstColon + 1).trim();
+                    }
+                }
             }
 
             let jumpText = "";
@@ -49,29 +77,29 @@ exports.parseTextToGraphData = (text) => {
                 jumpText = parts.slice(1).join('->').trim();
             }
             
-            let targetId = getNode(targetText);
+            let targetFallback = nodes[lastTopLevelId] ? nodes[lastTopLevelId].lane : null;
+            let targetId = getNode(targetText, false, targetFallback);
             
-            // Smart Level Allocation
             if (branchCounter === 1) {
-                currentLevel++; // Cabang utama turun ke bawah (Level selanjutnya)
-                if (!nodes[targetId].level || nodes[targetId].x === null) {
+                currentLevel++; 
+                if (!nodes[targetId].level || nodes[targetId].level_y === null) {
                     nodes[targetId].level = currentLevel;
-                    nodes[targetId].x = 0;
-                    nodes[targetId].y = currentLevel * 200;
+                    nodes[targetId].level_y = currentLevel * 200;
+                    nodes[targetId].level_x = 0;
                 }
             } else {
-                // Cabang ekstra disebarkan ke samping (Level statis sebaris decision)
-                if (!nodes[targetId].level || nodes[targetId].x === null) {
+                if (!nodes[targetId].level || nodes[targetId].level_y === null) {
                     nodes[targetId].level = nodes[lastTopLevelId].level;
-                    nodes[targetId].x = branchCounter === 2 ? 350 : -350;
-                    nodes[targetId].y = nodes[lastTopLevelId].y;
+                    nodes[targetId].level_x = branchCounter === 2 ? 350 : -350;
+                    nodes[targetId].level_y = nodes[lastTopLevelId].level_y;
                 }
             }
 
             edges.push({ from: lastTopLevelId, to: targetId, label: condition });
 
             if (jumpText) {
-                let jumpId = getNode(jumpText);
+                let jumpFallback = nodes[targetId] ? nodes[targetId].lane : null;
+                let jumpId = getNode(jumpText, false, jumpFallback);
                 edges.push({ from: targetId, to: jumpId, label: "" });
             }
         } else {
@@ -86,12 +114,13 @@ exports.parseTextToGraphData = (text) => {
                 jumpText = parts.slice(1).join('->').trim();
             }
 
-            let id = getNode(cleanText);
+            let fallbackLane = lastTopLevelId && nodes[lastTopLevelId] ? nodes[lastTopLevelId].lane : null;
+            let id = getNode(cleanText, false, fallbackLane);
 
-            if (!nodes[id].level || nodes[id].x === null) {
+            if (!nodes[id].level || nodes[id].level_y === null) {
                 nodes[id].level = currentLevel;
-                nodes[id].x = 0;
-                nodes[id].y = currentLevel * 200;
+                nodes[id].level_x = 0;
+                nodes[id].level_y = currentLevel * 200;
             } else {
                 currentLevel = nodes[id].level;
             }
@@ -101,7 +130,8 @@ exports.parseTextToGraphData = (text) => {
             }
 
             if (jumpText) {
-                let jumpId = getNode(jumpText);
+                let jumpFallback = nodes[id] ? nodes[id].lane : null;
+                let jumpId = getNode(jumpText, false, jumpFallback);
                 edges.push({ from: id, to: jumpId, label: "" });
             }
 
@@ -109,8 +139,6 @@ exports.parseTextToGraphData = (text) => {
         }
     });
 
-    // Post-process to guarantee ALL nodes have an assigned level to prevent Vis-Network Crash.
-    // Jump targets that are never explicitly defined in the main flow list will lack levels.
     let missing = true;
     let iterationLimit = 10;
     let maxLevel = currentLevel + 1;
@@ -118,49 +146,97 @@ exports.parseTextToGraphData = (text) => {
     while (missing && iterationLimit-- > 0) {
         missing = false;
         Object.keys(nodes).forEach(id => {
-            if (!nodes[id].level || nodes[id].x === null) {
-                // Try to infer from parent
+            if (!nodes[id].level || nodes[id].level_y === null) {
                 let parentEdge = edges.find(e => e.to === id);
                 if (parentEdge && nodes[parentEdge.from] && nodes[parentEdge.from].level) {
                     nodes[id].level = nodes[parentEdge.from].level + 1;
-                    nodes[id].x = nodes[parentEdge.from].x;
-                    nodes[id].y = nodes[parentEdge.from].y + 200;
+                    nodes[id].level_x = nodes[parentEdge.from].level_x;
+                    nodes[id].level_y = nodes[parentEdge.from].level_y + 200;
                 } else {
                     missing = true;
                 }
             }
         });
         
-        // Final fallback if they're isolated or caught in a resolution loop
         if (missing && iterationLimit === 1) {
             Object.keys(nodes).forEach(id => {
-                if (!nodes[id].level || nodes[id].x === null) {
+                if (!nodes[id].level || nodes[id].level_y === null) {
                     nodes[id].level = maxLevel++;
-                    nodes[id].x = 0;
-                    nodes[id].y = nodes[id].level * 200;
+                    nodes[id].level_x = 0;
+                    nodes[id].level_y = nodes[id].level * 200;
                 }
             });
         }
     }
 
     let graphData = { nodes: [], edges: edges, precalculatedLayout: true };
-    let mermaid = 'flowchart TD\n';
+    if (lanes.length > 0) {
+        graphData.lanes = lanes;
+        graphData.laneDirection = laneDirection;
+    }
 
-    Object.keys(nodes).forEach(id => {
-        let n = nodes[id];
+    let mermaid = `flowchart ${laneDirection === 'horizontal' ? 'LR' : 'TD'}\n`;
+
+    const processNode = (id, n) => {
         let shape = n.type === 'decision' ? 'diamond' : 'box';
-        graphData.nodes.push({ id: id, label: n.text, shape: shape, level: n.level, x: n.x, y: n.y });
+        
+        let finalX = n.level_x;
+        let finalY = n.level_y;
+        
+        if (lanes.length > 0 && n.lane) {
+            let laneIndex = lanes.indexOf(n.lane);
+            if (laneDirection === 'horizontal') {
+                finalX = n.level_y;
+                finalY = laneIndex * 250;
+            } else {
+                 finalX = laneIndex * 400;
+                 finalY = n.level_y;
+            }
+        } else if (lanes.length > 0 && !n.lane) {
+            if (laneDirection === 'horizontal') {
+                finalX = n.level_y; 
+                finalY = lanes.length * 250;
+            } else {
+                 finalX = lanes.length * 400; 
+                 finalY = n.level_y;
+            }
+        } else if (laneDirection === 'horizontal' && lanes.length === 0) {
+             finalX = n.level_y;
+             finalY = n.level_x;
+        }
+
+        graphData.nodes.push({ id: id, label: n.text, shape: shape, level: n.level, x: finalX, y: finalY, lane: n.lane });
 
         if (n.type === 'decision') {
-            mermaid += `    ${id}{"${n.text}"}\n`;
+            return `        ${id}{"${n.text}"}\n`;
         } else {
-            mermaid += `    ${id}["${n.text}"]\n`;
+            return `        ${id}["${n.text}"]\n`;
         }
-    });
+    };
+
+    if (lanes.length > 0) {
+        lanes.forEach(lane => {
+            mermaid += `    subgraph ${lane.replace(/\s+/g, '_')}["${lane}"]\n`;
+            Object.keys(nodes).forEach(id => {
+                if (nodes[id].lane === lane) {
+                    mermaid += processNode(id, nodes[id]);
+                }
+            });
+            mermaid += `    end\n`;
+        });
+        
+        Object.keys(nodes).forEach(id => {
+            if (!nodes[id].lane) {
+                mermaid += processNode(id, nodes[id]).substring(4);
+            }
+        });
+    } else {
+        Object.keys(nodes).forEach(id => {
+            mermaid += processNode(id, nodes[id]).substring(4);
+        });
+    }
 
     edges.forEach(e => {
-        graphData.edges.push({ from: e.from, to: e.to, label: e.label });
-
         if (e.label) {
             mermaid += `    ${e.from} -->|${e.label}| ${e.to}\n`;
         } else {
@@ -175,11 +251,29 @@ exports.parseMermaidToGraphData = (code) => {
     let graphData = { nodes: [], edges: [] };
     let nodesMap = {};
     const lines = code.split('\n');
+    let lanes = [];
+    let currentLane = null;
+    let laneDirection = 'vertical';
 
     lines.forEach(l => {
         let line = l.trim();
-        if (!line || line.startsWith('flowchart') || line.startsWith('graph')) return;
+        if (!line) return;
         
+        if (line.startsWith('flowchart LR') || line.startsWith('graph LR')) laneDirection = 'horizontal';
+        
+        if (line.startsWith('subgraph ')) {
+            let m = line.match(/subgraph\s+([A-Za-z0-9_]+)(?:\s*\["([^"]+)"\])?/);
+            if (m) {
+                 currentLane = m[2] || m[1];
+                 if (!lanes.includes(currentLane)) lanes.push(currentLane);
+            }
+            return;
+        }
+        if (line === 'end') {
+            currentLane = null;
+            return;
+        }
+
         const arrowSplit = line.split(/-->/);
         
         if (arrowSplit.length === 2) {
@@ -204,37 +298,47 @@ exports.parseMermaidToGraphData = (code) => {
                     text = m[2];
                     if (str.includes('{')) shape = 'diamond';
                 }
-                return { id, text, shape };
+                return { id, text, shape, lane: currentLane };
             };
 
             let n1 = parseNode(left);
             let n2 = parseNode(right);
 
             if (!nodesMap[n1.id]) {
-                nodesMap[n1.id] = true;
-                graphData.nodes.push({ id: n1.id, label: n1.text, shape: n1.shape });
+                nodesMap[n1.id] = { id: n1.id, label: n1.text, shape: n1.shape, lane: currentLane };
+                graphData.nodes.push(nodesMap[n1.id]);
+            } else if (currentLane && !nodesMap[n1.id].lane) {
+                nodesMap[n1.id].lane = currentLane;
             }
+            
             if (!nodesMap[n2.id]) {
-                nodesMap[n2.id] = true;
-                graphData.nodes.push({ id: n2.id, label: n2.text, shape: n2.shape });
+                nodesMap[n2.id] = { id: n2.id, label: n2.text, shape: n2.shape, lane: currentLane };
+                graphData.nodes.push(nodesMap[n2.id]);
+            } else if (currentLane && !nodesMap[n2.id].lane) {
+                nodesMap[n2.id].lane = currentLane;
             }
+
             graphData.edges.push({ from: n1.id, to: n2.id, label: label });
         } else {
              let m = line.match(/([A-Za-z0-9_]+)\s*[\[\{\(](?:["']??)([^"\'\]\}\)]+)/);
              if (m && !line.includes('classDef') && !line.includes('style')) {
                  let id = m[1];
                  if (!nodesMap[id]) {
-                     nodesMap[id] = true;
-                     let shape = line.includes('{') ? 'diamond' : 'box';
-                     graphData.nodes.push({ id: id, label: m[2], shape: shape });
+                     nodesMap[id] = { id: id, label: m[2], shape: line.includes('{') ? 'diamond' : 'box', lane: currentLane };
+                     graphData.nodes.push(nodesMap[id]);
+                 } else if (currentLane && !nodesMap[id].lane) {
+                     nodesMap[id].lane = currentLane;
                  }
              }
         }
     });
 
     graphData.precalculatedLayout = true;
+    if (lanes.length > 0) {
+        graphData.lanes = lanes;
+        graphData.laneDirection = laneDirection;
+    }
     
-    // Algoritma DFS untuk mereplika tatanan Lurus Sumbu-Y secara matematis
     let inDegree = {};
     graphData.nodes.forEach(n => inDegree[n.id] = 0);
     graphData.edges.forEach(e => inDegree[e.to] = (inDegree[e.to] || 0) + 1);
@@ -243,47 +347,133 @@ exports.parseMermaidToGraphData = (code) => {
     if (roots.length === 0 && graphData.nodes.length > 0) roots.push(graphData.nodes[0].id); 
     
     let visited = new Set();
-    let maxY = 0;
+    let maxLevelVal = 0;
+    let nextRootLevel = 1;
     
-    const dfs = (id, xOffset, startY) => {
-        if (visited.has(id)) return;
-        visited.add(id);
+    if (lanes.length > 0) {
+        let visited = new Set();
+        const dfs = (id, computedX, startLevel) => {
+            if (visited.has(id)) return;
+            visited.add(id);
+            
+            let node = graphData.nodes.find(n => n.id === id);
+            if (!node) return;
+            
+            node.level_x = computedX;
+            node.level = startLevel;
+            if (startLevel > maxLevelVal) maxLevelVal = startLevel;
+            
+            let children = graphData.edges.filter(e => e.from === id).map(e => e.to);
+            
+            children.forEach((childId, index) => {
+                 if (index === 0) {
+                     dfs(childId, computedX, startLevel + 1);
+                 } else {
+                     let newX = computedX + (index % 2 !== 0 ? 350 * Math.ceil(index / 2) : -350 * Math.ceil(index / 2));
+                     dfs(childId, newX, startLevel);
+                 }
+            });
+        };
         
-        let node = graphData.nodes.find(n => n.id === id);
-        if (!node) return;
-        
-        node.x = xOffset;
-        node.y = startY;
-        node.level = startY / 200;
-        if (startY > maxY) maxY = startY;
-        
-        let children = graphData.edges.filter(e => e.from === id).map(e => e.to);
-        
-        children.forEach((childId, index) => {
-             if (index === 0) {
-                 // Prioritas anak ke-1 turun lurus
-                 dfs(childId, xOffset, startY + 200);
-             } else {
-                 // Anak lainnya menyebar ke Kanan, lalu Kiri secara progresif
-                 let newX = xOffset + (index % 2 !== 0 ? 350 * Math.ceil(index / 2) : -350 * Math.ceil(index / 2));
-                 dfs(childId, newX, startY);
-             }
+        roots.forEach(root => {
+            dfs(root, 0, nextRootLevel);
+            nextRootLevel = maxLevelVal + 1;
         });
-    };
-    
-    let nextRootY = 200;
-    roots.forEach(root => {
-        dfs(root, 0, nextRootY);
-        nextRootY = maxY + 200;
-    });
+    } else {
+        let stack = new Set();
+        const calculateLevels = (nId, currentLevel) => {
+            stack.add(nId);
+            let nodeNode = graphData.nodes.find(nx => nx.id === nId);
+            if (nodeNode) {
+                if (!nodeNode.level || nodeNode.level < currentLevel) {
+                     nodeNode.level = currentLevel;
+                }
+            }
+            
+            let children = graphData.edges.filter(e => e.from === nId).map(e => e.to);
+            children.forEach(childId => {
+                if (!stack.has(childId)) {
+                     calculateLevels(childId, (nodeNode ? nodeNode.level : currentLevel) + 1);
+                }
+            });
+            stack.delete(nId);
+        };
+
+        roots.forEach(root => {
+            calculateLevels(root, nextRootLevel);
+            let maxCurrent = Math.max(0, ...graphData.nodes.map(n => n.level || 0));
+            nextRootLevel = maxCurrent + 1;
+        });
+        
+        let bfsVisited = new Set();
+        let queue = [];
+        roots.forEach(root => {
+            let nd = graphData.nodes.find(n => n.id === root);
+            if (nd && nd.level_x === undefined) nd.level_x = 0;
+            bfsVisited.add(root);
+            queue.push(root);
+        });
+
+        while (queue.length > 0) {
+            let curId = queue.shift();
+            let curNode = graphData.nodes.find(n => n.id === curId);
+            let curX = curNode ? (curNode.level_x || 0) : 0;
+            
+            let childrenIds = graphData.edges.filter(e => e.from === curId).map(e => e.to);
+            let unvisitedChildren = childrenIds.filter(cid => !bfsVisited.has(cid));
+            
+            unvisitedChildren.forEach((childId, idx) => {
+                let childNode = graphData.nodes.find(n => n.id === childId);
+                if (childNode) {
+                    if (unvisitedChildren.length === 1) {
+                        childNode.level_x = curX;
+                    } else if (idx === 0) {
+                        childNode.level_x = curX - 350;
+                    } else if (idx === 1) {
+                        childNode.level_x = curX + 350;
+                    } else {
+                        childNode.level_x = curX + (idx % 2 === 0 ? -350 * Math.ceil(idx/2) : 350 * Math.ceil(idx/2));
+                    }
+                }
+                bfsVisited.add(childId);
+                queue.push(childId);
+            });
+        }
+    }
 
     graphData.nodes.forEach(n => {
-        if (n.x === undefined || n.y === undefined) {
-             n.x = 0;
-             n.y = nextRootY;
-             n.level = nextRootY / 200;
-             nextRootY += 200;
+        if (n.level_x === undefined || n.level === undefined) {
+             n.level_x = 0;
+             n.level = nextRootLevel++;
         }
+        
+        let finalX = n.level_x;
+        let finalY = n.level * 200;
+
+        if (lanes.length > 0 && n.lane) {
+            let laneIndex = lanes.indexOf(n.lane);
+            if (laneDirection === 'horizontal') {
+                finalX = n.level * 350; 
+                finalY = laneIndex * 250; 
+            } else {
+                 finalX = laneIndex * 400; 
+                 finalY = n.level * 200; 
+            }
+        } else if (lanes.length > 0 && !n.lane) {
+            if (laneDirection === 'horizontal') {
+                finalX = n.level * 350; 
+                finalY = lanes.length * 250;
+            } else {
+                 finalX = lanes.length * 400; 
+                 finalY = n.level * 200;
+            }
+        } else if (laneDirection === 'horizontal' && lanes.length === 0) {
+             finalX = n.level * 350;
+             finalY = n.level_x;
+        }
+
+        n.x = finalX;
+        n.y = finalY;
     });
 
     return graphData;

@@ -42,6 +42,18 @@ const DEFAULT_SAMPLES = [
         title: 'E-KYC Selfie',
         format: 'mermaid',
         content: `flowchart TD\n    A[Mulai Proses E-KYC] --> B[Buka Kamera]\n    B --> C[Deteksi Wajah Awal]\n    C --> D[Instruksi Hadap Depan]\n    D --> E{Apakah Wajah Valid?}\n    E -->|Ya| F[Simpan Gambar Depan]\n    E -->|Tidak| G[Tampilkan Error]\n    G --> D\n    F --> H[Instruksi Hadap Kiri]\n    H --> I{Apakah Wajah Kiri Valid?}\n    I -->|Ya| J[Simpan Gambar Kiri]\n    I -->|Tidak| K[Tampilkan Error Kiri]\n    K --> H\n    J --> L[Instruksi Hadap Kanan]\n    L --> M{Apakah Wajah Kanan Valid?}\n    M -->|Ya| N[Ekstrak Data ke Base64]\n    M -->|Tidak| O[Tampilkan Error Kanan]\n    O --> L\n    N --> P[Kirim ke Backend API]\n    P --> Q[E-KYC Selesai]`
+    },
+    {
+        id: 'sample-text-4',
+        title: 'Swimlane Sales',
+        format: 'text',
+        content: `1. @Customer: Submit Purchase Order\n2. @Sales: Proses PO\n3. @Contracts: Cek Order\n4. Apakah Order Valid?\n  - Ya: @Legal: Legal Approves -> @Fulfillment: Kirim Pesanan\n  - Tidak: @Sales: Hubungi Customer\n5. Kirim Pesanan\n6. Selesai`
+    },
+    {
+        id: 'sample-mermaid-4',
+        title: 'Swimlane Sales',
+        format: 'mermaid',
+        content: `flowchart TD\n    subgraph Customer\n        A[Submit Purchase Order]\n    end\n    subgraph Sales\n        B[Proses PO]\n        E[Hubungi Customer]\n    end\n    subgraph Contracts\n        C{Apakah Order Valid?}\n    end\n    subgraph Legal\n        D[Legal Approves]\n    end\n    subgraph Fulfillment\n        F[Kirim Pesanan]\n        G[Selesai]\n    end\n    A --> B\n    B --> C\n    C -->|Ya| D\n    C -->|Tidak| E\n    D --> F\n    F --> G\n    E --> A`
     }
 ];
 
@@ -213,13 +225,13 @@ const loadThemes = async () => {
 };
 
 const THEME_PALETTES = {
-    'ocean': { bg: '#0f172a', nodeBg: '#bae6fd', border: '#0284c7', font: '#0369a1', line: '#0ea5e9' },
-    'sunset': { bg: '#0f172a', nodeBg: '#fed7aa', border: '#ea580c', font: '#9a3412', line: '#f97316' },
-    'forest': { bg: '#0f172a', nodeBg: '#bbf7d0', border: '#15803d', font: '#166534', line: '#22c55e' },
-    'midnight': { bg: '#0f172a', nodeBg: '#312e81', border: '#6366f1', font: '#e0e7ff', line: '#8b5cf6' },
-    'corporate': { bg: '#0f172a', nodeBg: '#e2e8f0', border: '#475569', font: '#0f172a', line: '#334155' },
-    'pastel': { bg: '#0f172a', nodeBg: '#f1f5f9', border: '#cbd5e1', font: '#475569', line: '#94a3b8' },
-    'monochrome': { bg: '#ffffff', nodeBg: '#ffffff', border: '#000000', font: '#000000', line: '#000000' }
+    'ocean': { bg: '#0f172a', nodeBg: '#bae6fd', border: '#0284c7', font: '#0369a1', line: '#0ea5e9', laneEven: 'rgba(14, 165, 233, 0.05)', laneOdd: 'rgba(14, 165, 233, 0.1)', laneBorder: 'rgba(14, 165, 233, 0.3)', laneText: '#7dd3fc' },
+    'sunset': { bg: '#0f172a', nodeBg: '#fed7aa', border: '#ea580c', font: '#9a3412', line: '#f97316', laneEven: 'rgba(249, 115, 22, 0.05)', laneOdd: 'rgba(249, 115, 22, 0.1)', laneBorder: 'rgba(249, 115, 22, 0.3)', laneText: '#fdba74' },
+    'forest': { bg: '#0f172a', nodeBg: '#bbf7d0', border: '#15803d', font: '#166534', line: '#22c55e', laneEven: 'rgba(34, 197, 94, 0.05)', laneOdd: 'rgba(34, 197, 94, 0.1)', laneBorder: 'rgba(34, 197, 94, 0.3)', laneText: '#86efac' },
+    'midnight': { bg: '#0f172a', nodeBg: '#312e81', border: '#6366f1', font: '#e0e7ff', line: '#8b5cf6', laneEven: 'rgba(99, 102, 241, 0.08)', laneOdd: 'rgba(99, 102, 241, 0.15)', laneBorder: 'rgba(99, 102, 241, 0.4)', laneText: '#a5b4fc' },
+    'corporate': { bg: '#0f172a', nodeBg: '#e2e8f0', border: '#475569', font: '#0f172a', line: '#334155', laneEven: 'rgba(148, 163, 184, 0.08)', laneOdd: 'rgba(148, 163, 184, 0.15)', laneBorder: 'rgba(148, 163, 184, 0.4)', laneText: '#cbd5e1' },
+    'pastel': { bg: '#0f172a', nodeBg: '#f1f5f9', border: '#cbd5e1', font: '#475569', line: '#94a3b8', laneEven: 'rgba(203, 213, 225, 0.08)', laneOdd: 'rgba(203, 213, 225, 0.15)', laneBorder: 'rgba(203, 213, 225, 0.4)', laneText: '#e2e8f0' },
+    'monochrome': { bg: '#ffffff', nodeBg: '#ffffff', border: '#000000', font: '#000000', line: '#000000', laneEven: 'rgba(0,0,0,0.05)', laneOdd: 'rgba(0,0,0,0.1)', laneBorder: 'rgba(0,0,0,0.3)', laneText: '#333333' }
 };
 
 let currentMermaidCode = '';
@@ -227,6 +239,8 @@ let currentSvgOutput = '';
 let network = null;
 let visNodes = null;
 let visEdges = null;
+let currentLanes = null;
+let currentLaneDirection = 'vertical';
 
 const renderCode = async () => {
     const content = document.getElementById('editor-input').value;
@@ -363,7 +377,57 @@ const createDiamondDataURI = (text, palette) => {
     return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svgString);
 };
 
+const drawSwimlaneBackground = (ctx, lanes, direction, palette, minX, maxX, minY, maxY) => {
+    const laneCount = lanes.length;
+    if (!laneCount) return;
+    ctx.save();
+    ctx.font = 'bold 16px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    
+    if (!Number.isFinite(minY)) minY = -200;
+    if (!Number.isFinite(maxY)) maxY = 1000;
+    if (!Number.isFinite(minX)) minX = -300;
+    if (!Number.isFinite(maxX)) maxX = 1000;
+
+    lanes.forEach((laneName, index) => {
+        const isEven = index % 2 === 0;
+        ctx.fillStyle = isEven ? palette.laneEven : palette.laneOdd;
+        ctx.strokeStyle = palette.laneBorder;
+        ctx.lineWidth = 1;
+        if (direction === 'horizontal') {
+            const laneY = (index * 250) - 125;
+            ctx.fillRect(minX, laneY, maxX - minX, 250);
+            if (index > 0) {
+                ctx.beginPath(); ctx.moveTo(minX, laneY); ctx.lineTo(maxX, laneY); ctx.stroke();
+            }
+            ctx.fillStyle = palette.laneBorder;
+            ctx.fillRect(minX, laneY, 150, 250);
+            ctx.save();
+            ctx.translate(minX + 75, laneY + 125);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillStyle = palette.laneText;
+            ctx.fillText(laneName, 0, 0);
+            ctx.restore();
+        } else {
+            const laneX = (index * 400) - 200;
+            ctx.fillRect(laneX, minY, 400, maxY - minY);
+            if (index > 0) {
+                ctx.beginPath(); ctx.moveTo(laneX, minY); ctx.lineTo(laneX, maxY); ctx.stroke();
+            }
+            ctx.fillStyle = palette.laneBorder;
+            ctx.fillRect(laneX, minY, 400, 50);
+            ctx.fillStyle = palette.laneText;
+            ctx.fillText(laneName, laneX + 200, minY + 25);
+        }
+    });
+    ctx.restore();
+};
+
 const drawVisNetwork = (data, themeId) => {
+    currentLanes = data.lanes || null;
+    currentLaneDirection = data.laneDirection || 'vertical';
+
     const container = document.getElementById('preview-container');
     container.innerHTML = '';
     
@@ -408,15 +472,25 @@ const drawVisNetwork = (data, themeId) => {
         }
     }));
 
-    visEdges = new vis.DataSet(data.edges.map(e => ({
-        from: e.from,
-        to: e.to,
-        label: e.label || '',
-        arrows: 'to',
-        color: { color: palette.line },
-        font: { align: 'middle', background: palette.bg !== '#ffffff' ? '#1e293b' : '#ffffff', color: palette.font, strokeWidth: 0 },
-        smooth: { type: 'cubicBezier', forceDirection: 'vertical', roundness: 0.4 }
-    })));
+    visEdges = new vis.DataSet(data.edges.map(e => {
+        let nodeFrom = data.nodes.find(n => n.id === e.from);
+        let nodeTo = data.nodes.find(n => n.id === e.to);
+        
+        let forceDir = currentLaneDirection === 'horizontal' ? 'horizontal' : 'vertical';
+        if (forceDir === 'vertical' && nodeFrom && nodeTo && nodeFrom.y !== undefined && nodeTo.y !== undefined && Math.abs(nodeFrom.y - nodeTo.y) < 20) {
+             forceDir = 'horizontal';
+        }
+        
+        return {
+            from: e.from,
+            to: e.to,
+            label: e.label || '',
+            arrows: 'to',
+            color: { color: palette.line },
+            font: { align: 'middle', background: palette.bg !== '#ffffff' ? '#1e293b' : '#ffffff', color: palette.font, strokeWidth: 0 },
+            smooth: { type: 'cubicBezier', forceDirection: forceDir, roundness: 0.4 }
+        };
+    }));
 
     const options = {
         layout: {
@@ -439,6 +513,21 @@ const drawVisNetwork = (data, themeId) => {
     };
 
     network = new vis.Network(wrapper, { nodes: visNodes, edges: visEdges }, options);
+
+    network.on('beforeDrawing', (ctx) => {
+        if (currentLanes && currentLanes.length > 0) {
+            const positions = network.getPositions();
+            let yVals = Object.values(positions).map(p => p.y);
+            let minY = yVals.length ? Math.min(...yVals) - 150 : -150;
+            let maxY = yVals.length ? Math.max(...yVals) + 150 : 1000;
+
+            let xVals = Object.values(positions).map(p => p.x);
+            let minX = xVals.length ? Math.min(...xVals) - 250 : -250;
+            let maxX = xVals.length ? Math.max(...xVals) + 250 : 1000;
+
+            drawSwimlaneBackground(ctx, currentLanes, currentLaneDirection, THEME_PALETTES[themeId] || THEME_PALETTES['ocean'], minX, maxX, minY, maxY);
+        }
+    });
 
     // Kunci titik koordinat dan matikan penahan hierarki agar bebas digeser vertikal & horizontal
     network.once('afterDrawing', () => {
@@ -611,6 +700,20 @@ const setupEventListeners = () => {
             if (box.bottom > maxY) maxY = box.bottom;
         });
 
+        if (currentLanes && currentLanes.length > 0) {
+            if (currentLaneDirection === 'vertical') {
+                minY -= 150;
+                maxY += 150;
+                minX = Math.min(minX, -200);
+                maxX = Math.max(maxX, (currentLanes.length * 400) - 200);
+            } else {
+                minX -= 250;
+                maxX += 250;
+                minY = Math.min(minY, -125);
+                maxY = Math.max(maxY, (currentLanes.length * 250) - 125);
+            }
+        }
+
         const padding = 60;
         const graphW = Math.abs(maxX - minX) + (padding * 2);
         const graphH = Math.abs(maxY - minY) + (padding * 2);
@@ -635,6 +738,7 @@ const setupEventListeners = () => {
         wrapper.style.width = (graphW * scaleMultiplier) + 'px';
         wrapper.style.height = (graphH * scaleMultiplier) + 'px';
         
+        network.setSize((graphW * scaleMultiplier) + 'px', (graphH * scaleMultiplier) + 'px');
         network.redraw();
         // Paksa Vis-Network mengatur ulang skala tata letak keseluruhan secara proporsional ke kanvas raksasa
         network.fit({ animation: false });
@@ -660,6 +764,7 @@ const setupEventListeners = () => {
             wrapper.style.position = origPos;
             wrapper.style.top = origTop;
             wrapper.style.left = origLeft;
+            network.setSize(origWidth || '100%', origHeight || '100%');
             network.redraw();
             network.moveTo({ position: oldViewPos, scale: oldScale, animation: false });
             
