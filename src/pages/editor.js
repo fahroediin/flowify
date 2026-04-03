@@ -49,6 +49,8 @@ export const renderEditorPage = async (container, user) => {
                     <div class="tab" data-format="text">Sequential Text</div>
                 </div>
                 
+                <div id="samples-list" class="samples-bar"></div>
+                
                 <div class="panel-content">
                     <p style="margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);" id="input-hint">
                         Write your Mermaid.js flowchart code here.
@@ -56,11 +58,6 @@ export const renderEditorPage = async (container, user) => {
                     <textarea id="editor-input" class="editor-textarea" spellcheck="false" placeholder="flowchart TD\n    A[Start] --> B[Process]\n    B --> C{Decision}\n    C -->|Yes| D[End]"></textarea>
                     
                     <button id="btn-render" class="primary" style="margin-top: 1rem; width: 100%;">Render Flowchart</button>
-                    
-                    <div class="samples-section">
-                        <h4 style="margin-bottom: 0.8rem; font-size: 0.9rem; color: var(--text-muted);">Quick Samples</h4>
-                        <div id="samples-list"></div>
-                    </div>
                 </div>
             </div>
 
@@ -111,24 +108,21 @@ const renderSamples = () => {
     if (!list) return;
     
     if (userSamples.length === 0) {
-        list.innerHTML = '<p style="font-size: 0.8rem; color: var(--text-muted); text-align: center;">No samples available.</p>';
+        list.style.display = 'none';
         return;
     }
+    list.style.display = 'flex';
 
-    list.innerHTML = userSamples.map(sample => `
-        <div class="sample-item" data-id="${sample.id}">
-            <div class="sample-info">
-                <span class="sample-title">${sample.title}</span>
-                <span class="sample-meta">${sample.format === 'mermaid' ? 'Mermaid' : 'Sequential Text'}</span>
-            </div>
-            <div class="sample-actions">
-                <button class="btn-sample-load" data-id="${sample.id}">Load</button>
-                <button class="btn-sample-delete" data-id="${sample.id}">&times;</button>
-            </div>
+    list.innerHTML = `
+        <span class="samples-label">Samples:</span>
+        <div class="samples-scroll">
+            ${userSamples.map(sample => `
+                <button class="sample-pill" data-id="${sample.id}">${sample.title}</button>
+            `).join('')}
         </div>
-    `).join('');
+    `;
 
-    list.querySelectorAll('.btn-sample-load').forEach(btn => {
+    list.querySelectorAll('.sample-pill').forEach(btn => {
         btn.addEventListener('click', () => {
             const sample = userSamples.find(s => s.id === btn.dataset.id);
             if (sample) {
@@ -156,17 +150,6 @@ const renderSamples = () => {
                 showToast(`Loaded sample: ${sample.title}`);
                 renderCode();
             }
-        });
-    });
-
-    list.querySelectorAll('.btn-sample-delete').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const id = btn.dataset.id;
-            userSamples = userSamples.filter(s => s.id !== id);
-            localStorage.setItem('flowify_samples', JSON.stringify(userSamples));
-            renderSamples();
-            showToast('Sample removed.');
         });
     });
 };

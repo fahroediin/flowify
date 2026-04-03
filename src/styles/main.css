@@ -270,66 +270,53 @@ input:focus, textarea:focus, select:focus {
     border-left: 4px solid var(--success);
 }
 
-.samples-section {
-    margin-top: 2rem;
-    padding-top: 1.5rem;
-    border-top: 1px solid var(--border);
+.samples-bar {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background-color: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    gap: 0.75rem;
 }
 
-.sample-item {
+.samples-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    white-space: nowrap;
+}
+
+.samples-scroll {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.75rem 1rem;
-    background-color: var(--bg-main);
+    gap: 0.5rem;
+    overflow-x: auto;
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none;  /* IE and Edge */
+}
+
+.samples-scroll::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.sample-pill {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8rem;
+    background-color: var(--bg-hover);
     border: 1px solid var(--border);
-    border-radius: 8px;
-    margin-bottom: 0.5rem;
+    border-radius: 100px;
+    color: var(--text-main);
+    white-space: nowrap;
     transition: all 0.2s ease;
 }
 
-.sample-item:hover {
+.sample-pill:hover {
+    background-color: var(--border);
     border-color: var(--text-muted);
-    background-color: var(--bg-hover);
+    transform: translateY(-1px);
 }
 
-.sample-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-}
-
-.sample-title {
-    font-weight: 600;
-    font-size: 0.9rem;
-}
-
-.sample-meta {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-}
-
-.sample-actions {
-    display: flex;
-    gap: 0.5rem;
-}
-
-.btn-sample-load {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    background-color: var(--accent);
-    color: var(--accent-text);
-}
-
-.btn-sample-delete {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.8rem;
-    background-color: transparent;
-    color: var(--danger);
-    border-color: var(--danger);
-}
-
-.btn-sample-delete:hover {
-    background-color: var(--danger);
-    color: white;
+.sample-pill:active {
+    transform: translateY(0);
 }
